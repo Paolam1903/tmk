@@ -23,7 +23,7 @@ if "usuario" not in st.session_state:
     st.session_state.rol = None
 
 if st.session_state.usuario is None:
-    st.title("🔐 Acceso sistema TMK - SER Comunicaciones")
+    st.title("🔐 Acceso sistema TMK - Ser Comunicaciones")
 
     usuario = st.text_input("Usuario")
     password = st.text_input("Contraseña", type="password")
@@ -54,12 +54,42 @@ if st.sidebar.button("Cerrar sesión"):
 # -------------------------
 # CARGAR DATOS
 # -------------------------
-df = pd.read_excel("presupuesto_TMK.xlsx", sheet_name="Datos")
+archivo_base = "presupuesto_TMK.xlsx"
+archivo_hist = "historico_cambios_TMK.xlsx"
+
+# Cargar archivo base
+df = pd.read_excel(archivo_base, sheet_name="Datos")
+
+# Limpiar nombres de columnas primero
 df.columns = df.columns.str.strip()
 
 # Si no existe la columna Pago cumplimiento la creamos
 if "Pago cumplimiento" not in df.columns:
     df["Pago cumplimiento"] = "0%"
+
+# Si existe histórico, aplicar últimos cambios
+if os.path.exists(archivo_hist):
+    hist = pd.read_excel(archivo_hist)
+    hist.columns = hist.columns.str.strip()
+
+    if not hist.empty:
+        # Tomar el último cambio por registro
+        hist_ordenado = hist.sort_values("Fecha cambio")
+        ultimos = hist_ordenado.drop_duplicates(
+            subset=["Año", "Mes", "Nombre", "Concepto"],
+            keep="last"
+        )
+
+        for _, row in ultimos.iterrows():
+            condicion = (
+                (df["Año"] == row["Año"]) &
+                (df["Mes"] == row["Mes"]) &
+                (df["Nombre"] == row["Nombre"]) &
+                (df["Concepto"] == row["Concepto"])
+            )
+            df.loc[condicion, "Pago cumplimiento"] = row["Pago cumplimiento"]
+
+
 
 # -------------------------
 # FILTROS EN SIDEBAR
@@ -91,7 +121,7 @@ st.title(f"📊 Presupuesto TMK - {mes} {año}")
 # -------------------------
 def calcular_cumplimiento(row):
     if row["Concepto"] in ["Pyme Móvil - salarial", "CLOUND - salarial"]:
-        return "Sin meta"
+        return "0%"
     elif row["Meta"] == 0:
         return "0%"
     else:
@@ -126,12 +156,9 @@ if st.session_state.rol == "director":
         archivo_base = "presupuesto_TMK.xlsx"
         archivo_hist = "historico_cambios_TMK.xlsx"
 
-        # Cargar base completa
         df_base = pd.read_excel(archivo_base, sheet_name="Datos")
 
-        # Actualizar solo los registros filtrados
         for index, row in df_editado.iterrows():
-
             condicion = (
                 (df_base["Año"] == row["Año"]) &
                 (df_base["Mes"] == row["Mes"]) &
@@ -141,10 +168,8 @@ if st.session_state.rol == "director":
 
             df_base.loc[condicion, "Pago cumplimiento"] = row["Pago cumplimiento"]
 
-        # Guardar archivo base actualizado
         df_base.to_excel(archivo_base, sheet_name="Datos", index=False)
 
-        # Guardar histórico
         df_hist = df_editado.copy()
         df_hist["Usuario cambio"] = st.session_state.usuario
         df_hist["Fecha cambio"] = datetime.now()
@@ -159,6 +184,11 @@ if st.session_state.rol == "director":
 
         st.success("Cambios guardados y actualizados correctamente")
 
+else:
+    # Usuario administrativo: solo visualiza
+    df_editado = df_filtrado.copy()
+    st.info("Modo administrativo: solo visualización")
+    st.dataframe(df_editado, use_container_width=True)
 # -------------------------
 # DESCARGAR HISTÓRICO
 # -------------------------
