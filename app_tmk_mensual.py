@@ -217,7 +217,7 @@ def grafico_con_tendencia(data, titulo):
         st.warning("No hay datos disponibles")
         return
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(6,4))
 
     nombres = data["Nombre"]
     valores = data["Ejecutado"]
@@ -225,7 +225,7 @@ def grafico_con_tendencia(data, titulo):
     barras = ax.bar(nombres, valores)
 
     # Tamaño letra pequeño
-    ax.tick_params(axis='x', labelsize=8)
+    ax.tick_params(axis='x', labelsize=8, rotation=45)
     ax.tick_params(axis='y', labelsize=8)
     ax.set_title(titulo, fontsize=10)
 
@@ -242,7 +242,6 @@ def grafico_con_tendencia(data, titulo):
         )
 
     # Línea de tendencia
-    x = range(len(valores))
     z = pd.Series(valores).rolling(window=2, min_periods=1).mean()
     ax.plot(nombres, z, marker='o')
 
@@ -253,13 +252,21 @@ def grafico_con_tendencia(data, titulo):
 venta_directa = aux[aux["Concepto"] == "Venta directa - salarial"]
 vd = venta_directa.groupby("Nombre")["Ejecutado"].sum().reset_index()
 
-grafico_con_tendencia(vd, "Ventas directas por asesora")
-
 # ---- Referidos
 referido = aux[aux["Concepto"] == "Referido - bono"]
 ref = referido.groupby("Nombre")["Ejecutado"].sum().reset_index()
 
-grafico_con_tendencia(ref, "Referidos por asesora")
+# =========================
+# MOSTRAR EN 2 COLUMNAS
+# =========================
+col1, col2 = st.columns(2)
+
+with col1:
+    grafico_con_tendencia(vd, "Ventas directas por asesora")
+
+with col2:
+    grafico_con_tendencia(ref, "Referidos por asesora")
+
 
 
 # -------------------------
